@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
+    <title>Details Movie</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Lexend:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #10141E;
+            color: #CBD5E1;
+            /* Thêm lớp phủ mờ cho background động */
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            position: relative;
+        }
+
+        /* Lớp phủ gradient/mờ cho background */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 0;
+            pointer-events: none;
+            background: linear-gradient(180deg, rgba(16, 20, 30, 0.92) 0%, rgba(16, 20, 30, 0.85) 60%, rgba(16, 20, 30, 0.95) 100%);
+            /* Giảm blur để mượt cuộn hơn */
+            backdrop-filter: blur(2px);
+        }
+
+        #mainContent,
+        main,
+        .header-section,
+        .section-block {
+            position: relative;
+            z-index: 1;
+            /* Tối ưu cuộn */
+            will-change: transform;
+        }
+
+        .header-section {
+            background: linear-gradient(180deg, rgba(16, 20, 30, 0.9) 0%, rgba(16, 20, 30, 0.7) 70%, rgba(16, 20, 30, 0.3) 100%);
+            padding-top: 1.5rem;
+            padding-bottom: 1.5rem;
+            border-bottom: 1px solid #2A374F;
+        }
+
+        .page-title-custom {
+            /* Dùng cho tên phim ở header */
+            font-family: 'Lexend', sans-serif;
+            color: #E2E8F0;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        .section-block {
+            background-color: rgba(22, 30, 44, 0.85);
+            /* Làm mờ nền section */
+            border: 1px solid #2A374F;
+            box-shadow: 0 6px 20px rgba(99, 102, 241, 0.07);
+            transition: box-shadow 0.18s, border 0.18s;
+            width: 100%;
+            max-width: 100%;
+            backdrop-filter: blur(2px);
+            /* Thêm hiệu ứng blur nhẹ */
+        }
+
+        section.section-block {
+            min-width: 220px;
+            max-width: 700px;
+            margin: 0 auto;
+            background: rgba(24, 31, 42, 0.85);
+            /* Làm mờ nền section */
+            border: 1.5px solid #232946;
+            box-shadow: 0 2px 12px rgba(99, 102, 241, 0.06);
+            backdrop-filter: blur(2px);
+            /* Thêm hiệu ứng blur nhẹ */
+        }
+
+        .section-title-bar {
+            font-family: 'Lexend', sans-serif;
+            color: #A5B4FC;
+            border-bottom: 2px solid #6366F1;
+            padding-bottom: 0.5rem;
+            margin-bottom: 1rem;
+            font-weight: 500;
+        }
+
+        .movie-poster-container {
+            flex-shrink: 0;
+        }
+
+        .info-tag {
+            background-color: #28354E;
+            color: #A5B4FC;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.8rem;
+            margin-right: 0.5rem;
+            margin-bottom: 0.5rem;
+            display: inline-block;
+            border: 1px solid #3B4D6B;
+        }
+
+        .content-text {
+            color: #BCCCDC;
+        }
+
+        .list-item-bg {
+            background-color: #1E293B;
+            border: 1px solid #334155;
+        }
+
+        .list-item-bg:hover {
+            background-color: #28354E;
+        }
+
+        .list-item-bg.active {
+            background-color: #6366F1;
+            color: white;
+            border-color: #4F46E5;
+        }
+
+        /* UPDATED: Video container for iframe */
+        .video-container {
+            position: relative;
+            width: 100%;
+            padding-bottom: 56.25%;
+            /* 16:9 Aspect Ratio */
+            height: 0;
+            overflow: hidden;
+            background-color: #000;
+            border-radius: 8px;
+            border: 1px solid #2A374F;
+        }
+
+        .video-container iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: 0;
+            /* Remove iframe border */
+        }
+
+        .episode-list-container {
+            max-height: 450px;
+            overflow-y: auto;
+        }
+
+        .episode-list-container::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .episode-list-container::-webkit-scrollbar-track {
+            background: #161E2C;
+            border-radius: 10px;
+        }
+
+        .episode-list-container::-webkit-scrollbar-thumb {
+            background: #6366F1;
+            border-radius: 10px;
+        }
+
+        .episode-list-container::-webkit-scrollbar-thumb:hover {
+            background: #4F46E5;
+        }
+
+        #loadingIndicator,
+        #errorIndicator {
+            display: none;
+            text-align: center;
+            padding: 3rem 1rem;
+            font-size: 1.1rem;
+            border-radius: 8px;
+            background-color: #161E2C;
+            border: 1px solid #2A374F;
+            margin: 2rem auto;
+            max-width: lg;
+            /* Tailwind class for max-width */
+        }
+
+        .hidden-section {
+            display: none;
+        }
+
+        /* Modern episode list styles */
+        .episode-list-modern {
+            flex-wrap: wrap;
+            gap: 0.4rem;
+            justify-content: center;
+            max-height: 180px;
+            overflow-y: auto;
+            width: 100%;
+        }
+
+        .episode-list-modern button {
+            background: #232946;
+            color: #a5b4fc;
+            border: none;
+            border-radius: 10px;
+            padding: 0.38rem 0.95rem;
+            font-size: 0.98rem;
+            font-weight: 500;
+            margin-bottom: 0.1rem;
+            transition: background 0.18s, color 0.18s, box-shadow 0.18s;
+            box-shadow: 0 1px 4px rgba(99, 102, 241, 0.04);
+            outline: none;
+            cursor: pointer;
+            letter-spacing: 0.01em;
+        }
+
+        .episode-list-modern button.active,
+        .episode-list-modern button:hover {
+            background: #6366f1;
+            color: #fff;
+            box-shadow: 0 2px 8px rgba(99, 102, 241, 0.10);
+        }
+
+        #serverList button {
+            background: #232946;
+            color: #a5b4fc;
+            border: none;
+            border-radius: 8px;
+            padding: 0.4rem 1.2rem;
+            font-size: 0.95rem;
+            font-weight: 500;
+            margin-bottom: 0.2rem;
+            transition: background 0.18s, color 0.18s;
+            outline: none;
+            cursor: pointer;
+        }
+
+        #serverList button.active,
+        #serverList button:hover {
+            background: #6366f1;
+            color: #fff;
+        }
+    </style>
+</head>
+
+<body>
+    <header class="header-section sticky top-0 z-50">
+        <div class="container mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
+            <a href="search_movie.html"
+                class="flex items-center gap-2 text-indigo-400 hover:text-indigo-200 font-semibold text-sm sm:text-base transition">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                </svg>
+                <span>Quay lại</span>
+            </a>
+            <a href="search_movie.html" class="flex-1 flex justify-center">
+                <h1 id="dynamicPageTitle" class="page-title-custom text-xl sm:text-2xl truncate">Đang tải thông tin
+                    phim...</h1>
+            </a>
+            <div class="w-20"></div> <!-- giữ cân bằng layout -->
+        </div>
+    </header>
+
+    <main class="container mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div id="loadingIndicator">
+            <div class="flex justify-center items-center space-x-2">
+                <svg class="animate-spin h-6 w-6 text-indigo-400" xmlns="http://www.w3.org/2000/svg" fill="none"
+                    viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                    </path>
+                </svg>
+                <span>Đang tải dữ liệu phim... Xin chờ một lát nhé!</span>
+            </div>
+        </div>
+        <div id="errorIndicator" class="text-red-400"></div>
+
+        <div id="movieContentSection" class="hidden-section">
+
+
+            <div class="grid grid-cols-1 gap-6 lg:gap-8">
+                <!-- Phần xem phim full width -->
+                <div class="section-block p-4 sm:p-5 rounded-lg">
+                    <h2 class="text-xl font-semibold mb-4 section-title-bar">Xem Phim</h2>
+                    <div id="videoPlayerContainer" class="video-container mb-3">
+                        <iframe id="videoPlayerIframe" src="about:blank" frameborder="0"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            allowfullscreen></iframe>
+                    </div>
+                    <div id="currentEpisodeInfo" class="text-center text-indigo-300 font-medium text-sm py-1">
+                        Chọn một tập để xem.
+                    </div>
+                </div>
+                <!-- Section chọn tập phim riêng biệt, nhỏ gọn, tối giản, đặt dưới phần xem phim -->
+                <section
+                    class="section-block p-3 sm:p-4 rounded-lg flex flex-col items-center min-h-[80px] mt-2 bg-[#181f2a] shadow-sm w-full"
+                    style="max-width: none;">
+                    <div class="flex items-center w-full mb-2 gap-3">
+                        <div id="serverList" class="flex flex-wrap gap-1 w-full"></div>
+                    </div>
+                    <h2 class="text-sm font-semibold mb-2 section-title-bar w-full tracking-wide">Episodes
+                    </h2>
+                    <div id="episodeListContainer"
+                        class="episode-list-modern flex flex-wrap gap-1 w-full justify-start"></div>
+                </section>
+            </div>
+
+            <!--  -->
+            <div class="section-block p-4 sm:p-6 rounded-lg mb-8 mt-8">
+                <div class="flex flex-col md:flex-row gap-6 md:gap-8">
+                    <div class="movie-poster-container w-full md:w-1/3 lg:w-1/4">
+                        <img id="moviePoster" src="" alt="Poster Phim" class="rounded-lg shadow-md w-full object-cover"
+                            loading="lazy" width="356" height="444">
+                    </div>
+                    <div class="flex-1">
+                        <h2 id="movieName" class="text-2xl sm:text-3xl font-bold mb-1 text-slate-100"
+                            style="font-family: 'Lexend', sans-serif;"></h2>
+                        <p id="movieOriginName" class="text-md text-slate-400 mb-4"></p>
+                        <div class="mb-4 flex flex-wrap">
+                            <span class="info-tag">Năm: <span id="movieYear"></span></span>
+                            <span class="info-tag">Trạng thái: <span id="movieStatus"></span></span>
+                            <span class="info-tag">Chất lượng: <span id="movieQuality"></span></span>
+                            <span class="info-tag">Ngôn ngữ: <span id="movieLang"></span></span>
+                            <span class="info-tag">Thời lượng: <span id="movieTime"></span></span>
+                            <span class="info-tag">Tổng số tập: <span id="movieEpisodeTotal"></span></span>
+                            <span class="info-tag">Tập hiện tại: <span id="movieEpisodeCurrent"></span></span>
+                        </div>
+                        <h3 class="text-lg font-semibold mt-5 mb-2 section-title-bar">Nội dung phim</h3>
+                        <p id="movieContent" class="content-text leading-relaxed mb-4 text-sm"></p>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 mb-4">
+                            <div>
+                                <h4 class="text-md font-semibold mb-1 text-slate-300">Thể loại:</h4>
+                                <div id="movieCategories" class="flex flex-wrap gap-2"></div>
+                            </div>
+                            <div>
+                                <h4 class="text-md font-semibold mb-1 text-slate-300">Quốc gia:</h4>
+                                <div id="movieCountries" class="flex flex-wrap gap-2"></div>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
+                            <div>
+                                <h4 class="text-md font-semibold mb-1 text-slate-300">Diễn viên:</h4>
+                                <p id="movieActors" class="content-text text-sm"></p>
+                            </div>
+                            <div>
+                                <h4 class="text-md font-semibold mb-1 text-slate-300">Đạo diễn:</h4>
+                                <p id="movieDirectors" class="content-text text-sm"></p>
+                            </div>
+                        </div>
+                        <div class="mt-6" id="trailerContainer"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="text-center py-10 mt-10 border-t border-slate-800">
+        <p class="text-xs text-slate-500">© <span id="currentYear"></span> Chi Tiết Phim. Powered by PhimAPI.
+        </p>
+    </footer>
+
+    <script>
+        let currentServerIndex = 0;
+        let currentEpisodeIndex = -1;
+
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const errorIndicator = document.getElementById('errorIndicator');
+        const movieContentSection = document.getElementById('movieContentSection');
+        const dynamicPageTitle = document.getElementById('dynamicPageTitle');
+        const videoPlayerIframe = document.getElementById('videoPlayerIframe');
+
+        async function fetchMovieData(slug) {
+            if (!slug) {
+                errorIndicator.textContent = 'Không có slug phim để tải.';
+                errorIndicator.style.display = 'block';
+                loadingIndicator.style.display = 'none';
+                movieContentSection.classList.add('hidden-section');
+                dynamicPageTitle.textContent = "Lỗi";
+                return;
+            }
+            loadingIndicator.style.display = 'flex';
+            errorIndicator.style.display = 'none';
+            movieContentSection.classList.add('hidden-section');
+            dynamicPageTitle.textContent = "Đang tải...";
+
+            const apiUrl = `https://phimapi.com/phim/${slug}`;
+            try {
+                const response = await fetch(apiUrl);
+                if (!response.ok) {
+                    throw new Error(`Lỗi API: ${response.status} - ${response.statusText}`);
+                }
+                const data = await response.json();
+                if (!data.status || !data.movie) {
+                    throw new Error(data.msg || 'Không tìm thấy thông tin phim hoặc định dạng API không đúng.');
+                }
+                displayMovieData(data);
+                loadingIndicator.style.display = 'none';
+                movieContentSection.classList.remove('hidden-section');
+            } catch (error) {
+                console.error('Lỗi khi tải dữ liệu phim:', error);
+                errorIndicator.textContent = `Lỗi: ${error.message}. Slug đã thử: "${slug}".`;
+                errorIndicator.style.display = 'block';
+                loadingIndicator.style.display = 'none';
+                movieContentSection.classList.add('hidden-section');
+                dynamicPageTitle.textContent = "Lỗi Tải Phim";
+            }
+        }
+
+        function extractSlugFromAnyUrl(urlOrSlug) {
+            if (!urlOrSlug) return null;
+            try {
+                const url = new URL(urlOrSlug);
+                if ((url.hostname.includes('phimapi.com') || url.hostname.includes('kkphim.com')) && url.pathname.startsWith('/phim/')) {
+                    const pathParts = url.pathname.split('/');
+                    const potentialSlug = pathParts[pathParts.length - 1] || pathParts[pathParts.length - 2];
+                    if (potentialSlug) return potentialSlug;
+                }
+            } catch (e) {
+                if (/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(urlOrSlug)) {
+                    return urlOrSlug;
+                }
+            }
+            if (!urlOrSlug.includes('/') && !urlOrSlug.includes('.') && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(urlOrSlug)) {
+                return urlOrSlug;
+            }
+            return null;
+        }
+
+        function displayMovieData(apiResponse) {
+            const movie = apiResponse.movie;
+            const episodesData = apiResponse.episodes;
+
+            // Đặt background là thumb_url nếu có
+            if (movie.thumb_url) {
+                if (document.body.getAttribute('data-bg') !== movie.thumb_url) {
+                    const bgImg = new window.Image();
+                    bgImg.onload = function () {
+                        document.body.style.backgroundImage = `url('${movie.thumb_url}')`;
+                        document.body.setAttribute('data-bg', movie.thumb_url);
+                    };
+                    bgImg.src = movie.thumb_url;
+                }
+            } else {
+                document.body.style.backgroundImage = '';
+                document.body.removeAttribute('data-bg');
+            }
+
+            document.title = movie.name || "Chi Tiết Phim";
+            dynamicPageTitle.textContent = movie.name || "Chi Tiết Phim";
+
+            document.getElementById('moviePoster').src = movie.poster_url || 'https://placehold.co/400x600/1E293B/475569?text=No+Image';
+            document.getElementById('moviePoster').onerror = function () { this.src = 'https://placehold.co/400x600/1E293B/475569?text=Error'; };
+            document.getElementById('movieName').textContent = movie.name;
+            document.getElementById('movieOriginName').textContent = movie.origin_name;
+            document.getElementById('movieYear').textContent = movie.year || 'N/A';
+            document.getElementById('movieStatus').textContent = movie.status || 'N/A';
+            document.getElementById('movieQuality').textContent = movie.quality || 'N/A';
+            document.getElementById('movieLang').textContent = movie.lang || 'N/A';
+            document.getElementById('movieTime').textContent = movie.time || 'N/A';
+            document.getElementById('movieEpisodeTotal').textContent = movie.episode_total || 'N/A';
+            document.getElementById('movieEpisodeCurrent').textContent = movie.episode_current || 'N/A';
+            document.getElementById('movieContent').textContent = movie.content || 'Chưa có mô tả.';
+
+            document.getElementById('movieActors').textContent = Array.isArray(movie.actor) ? movie.actor.join(', ') : (movie.actor || 'Đang cập nhật');
+            document.getElementById('movieDirectors').textContent = Array.isArray(movie.director) ? movie.director.join(', ') : (movie.director || 'Đang cập nhật');
+
+            const categoriesContainer = document.getElementById('movieCategories');
+            categoriesContainer.innerHTML = '';
+            if (Array.isArray(movie.category)) {
+                movie.category.forEach(cat => {
+                    const catElement = document.createElement('span');
+                    catElement.className = 'info-tag';
+                    catElement.textContent = cat.name;
+                    categoriesContainer.appendChild(catElement);
+                });
+            } else { categoriesContainer.innerHTML = '<span class="info-tag">N/A</span>'; }
+
+            const countriesContainer = document.getElementById('movieCountries');
+            countriesContainer.innerHTML = '';
+            if (Array.isArray(movie.country)) {
+                movie.country.forEach(country => {
+                    const countryElement = document.createElement('span');
+                    countryElement.className = 'info-tag';
+                    countryElement.textContent = country.name;
+                    countriesContainer.appendChild(countryElement);
+                });
+            } else { countriesContainer.innerHTML = '<span class="info-tag">N/A</span>'; }
+
+            const trailerContainer = document.getElementById('trailerContainer');
+            trailerContainer.innerHTML = '';
+            if (movie.trailer_url && movie.trailer_url !== "https://www.youtube.com/watch?v=XLWpj-aeRJ8" && movie.trailer_url !== "https://www.youtube.com/watch?v=2u-RIQst_N4") {
+                const trailerButton = document.createElement('a');
+                trailerButton.href = movie.trailer_url;
+                trailerButton.target = "_blank";
+                trailerButton.className = "inline-flex items-center justify-center bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-5 rounded-lg transition duration-300 text-sm shadow-md";
+                trailerButton.innerHTML = `<svg class="w-5 h-5 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M3 4a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2H3Zm10 4.75L8.75 11V7L13 9.25Z" /></svg>Xem Trailer`;
+                trailerContainer.appendChild(trailerButton);
+            } else {
+                trailerContainer.innerHTML = '<p class="text-sm text-slate-500">Trailer không có sẵn.</p>';
+            }
+
+            currentServerIndex = 0;
+            currentEpisodeIndex = -1;
+
+            // Clear previous iframe content
+            if (videoPlayerIframe) {
+                videoPlayerIframe.src = 'about:blank';
+            }
+            document.getElementById('currentEpisodeInfo').textContent = 'Chọn một tập để xem.';
+
+            populateServers(episodesData);
+            populateEpisodes(episodesData);
+        }
+
+        function populateServers(episodesData) {
+            const serverListContainer = document.getElementById('serverList');
+            serverListContainer.innerHTML = '';
+            const serverTabs = document.createElement('div');
+            serverTabs.className = 'flex flex-wrap gap-2 justify-center mb-3';
+
+            if (!episodesData || episodesData.length === 0) {
+                serverListContainer.innerHTML = '<p class="text-sm text-slate-400">Không có server phát sóng.</p>';
+                return;
+            }
+
+            episodesData.forEach((server, index) => {
+                const serverButton = document.createElement('button');
+                serverButton.textContent = server.server_name;
+                serverButton.className = `list-item-bg px-3 py-1.5 rounded-md text-xs font-medium focus:outline-none ${index === currentServerIndex ? 'active' : 'text-slate-300'}`;
+                serverButton.onclick = () => {
+                    currentServerIndex = index;
+                    populateServers(episodesData);
+                    populateEpisodes(episodesData);
+                    // Clear iframe when server changes before an episode is selected
+                    if (videoPlayerIframe) videoPlayerIframe.src = 'about:blank';
+                    document.getElementById('currentEpisodeInfo').textContent = 'Chọn một tập từ server mới.';
+                };
+                serverTabs.appendChild(serverButton);
+            });
+            serverListContainer.appendChild(serverTabs);
+        }
+
+        function populateEpisodes(episodesData) {
+            const episodeListContainer = document.getElementById('episodeListContainer');
+            episodeListContainer.innerHTML = '';
+
+            if (!episodesData || episodesData.length === 0 || !episodesData[currentServerIndex] || !episodesData[currentServerIndex].server_data) {
+                episodeListContainer.innerHTML = '<p class="text-sm text-slate-400 p-2 w-full text-center">Không có tập phim cho server này.</p>';
+                return;
+            }
+
+            const currentServerEpisodes = episodesData[currentServerIndex].server_data;
+            currentServerEpisodes.forEach((episode, index) => {
+                const episodeButton = document.createElement('button');
+                episodeButton.textContent = episode.name;
+                episodeButton.className = `block ${index === currentEpisodeIndex ? 'active' : ''}`;
+                episodeButton.onclick = () => {
+                    currentEpisodeIndex = index;
+                    document.querySelectorAll('#episodeListContainer .active').forEach(btn => btn.classList.remove('active'));
+                    episodeButton.classList.add('active');
+                    playEpisodeWithIframe(episode.link_embed, episode.name);
+                };
+                episodeListContainer.appendChild(episodeButton);
+            });
+            episodeListContainer.className = 'episode-list-modern flex flex-wrap gap-2 justify-center';
+        }
+
+        // UPDATED: Function to play episode using iframe
+        function playEpisodeWithIframe(embedUrl, episodeName) {
+            const currentEpisodeInfo = document.getElementById('currentEpisodeInfo');
+
+            if (!videoPlayerIframe) {
+                console.error("Iframe element not found!");
+                currentEpisodeInfo.textContent = 'Lỗi: Không tìm thấy trình phát video.';
+                return;
+            }
+            if (!embedUrl) {
+                console.error("Không có URL nhúng cho tập này.");
+                currentEpisodeInfo.textContent = `Không thể phát: ${episodeName} (thiếu link).`;
+                videoPlayerIframe.src = 'about:blank'; // Clear iframe
+                return;
+            }
+
+            currentEpisodeInfo.textContent = `Đang tải: ${episodeName}...`;
+            videoPlayerIframe.src = embedUrl;
+            videoPlayerIframe.onload = () => {
+                currentEpisodeInfo.textContent = `Đang phát: ${episodeName}`;
+            };
+            videoPlayerIframe.onerror = () => {
+                currentEpisodeInfo.textContent = `Lỗi khi tải: ${episodeName}.`;
+                console.error("Lỗi khi tải iframe src: " + embedUrl);
+            };
+        }
+
+
+        window.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('currentYear').textContent = new Date().getFullYear();
+            const queryParams = new URLSearchParams(window.location.search);
+            const sourceUrl = queryParams.get('source_url');
+            const phimSlug = queryParams.get('phim');
+
+            let slugToLoad = null;
+
+            if (sourceUrl) {
+                slugToLoad = extractSlugFromAnyUrl(sourceUrl);
+            } else if (phimSlug) {
+                slugToLoad = extractSlugFromAnyUrl(phimSlug);
+            }
+
+            if (slugToLoad) {
+                fetchMovieData(slugToLoad);
+            } else {
+                movieContentSection.classList.add('hidden-section');
+                errorIndicator.textContent = 'Không tìm thấy thông tin phim. Vui lòng kiểm tra lại URL.';
+                errorIndicator.style.display = 'block';
+                dynamicPageTitle.textContent = "Không Tìm Thấy Phim";
+                loadingIndicator.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+
+</html>
