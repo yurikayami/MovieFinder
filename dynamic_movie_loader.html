@@ -379,11 +379,11 @@
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
                             <div>
                                 <h4 class="text-md font-semibold mb-1 text-slate-300">Diễn viên:</h4>
-                                <p id="movieActors" class="content-text text-sm"></p>
+                                <p id="movieActors" class="flex flex-wrap gap-2"></p>
                             </div>
                             <div>
                                 <h4 class="text-md font-semibold mb-1 text-slate-300">Đạo diễn:</h4>
-                                <p id="movieDirectors" class="content-text text-sm"></p>
+                                <p id="movieDirectors" class="flex flex-wrap gap-2"></p>
                             </div>
                         </div>
                         <div class="mt-6" id="trailerContainer"></div>
@@ -393,10 +393,6 @@
         </div>
     </main>
 
-    <footer class="text-center py-10 mt-10 border-t border-slate-800">
-        <p class="text-xs text-slate-500">© <span id="currentYear"></span> Chi Tiết Phim. Powered by PhimAPI.
-        </p>
-    </footer>
 
     <script>
         let currentServerIndex = 0;
@@ -633,7 +629,6 @@
 
 
         window.addEventListener('DOMContentLoaded', () => {
-            document.getElementById('currentYear').textContent = new Date().getFullYear();
             const queryParams = new URLSearchParams(window.location.search);
             const sourceUrl = queryParams.get('source_url');
             const phimSlug = queryParams.get('phim');
